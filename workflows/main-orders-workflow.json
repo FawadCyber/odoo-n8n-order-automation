@@ -1,0 +1,2330 @@
+{
+  "name": "AZ New Orders - Stock Matching, Other Country & Confirm",
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "Run manually",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 0,6,10,14 * * *"
+            }
+          ]
+        }
+      },
+      "name": "Run at 12AM, 6AM, 10AM, 2PM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c1",
+              "name": "today",
+              "value": "={{ $now.setZone('Asia/Karachi').toFormat('M/d/yyyy') }}",
+              "type": "string"
+            },
+            {
+              "id": "c2",
+              "name": "odooUrl",
+              "value": "https://your-company.odoo.com",
+              "type": "string"
+            },
+            {
+              "id": "c3",
+              "name": "odooDb",
+              "value": "YOUR_ODOO_DATABASE",
+              "type": "string"
+            },
+            {
+              "id": "c4",
+              "name": "odooLogin",
+              "value": "YOUR_ODOO_LOGIN_EMAIL",
+              "type": "string"
+            },
+            {
+              "id": "c5",
+              "name": "odooApiKey",
+              "value": "YOUR_ODOO_API_KEY",
+              "type": "string"
+            },
+            {
+              "id": "c6",
+              "name": "ameriWarehouseId",
+              "value": 4,
+              "type": "number"
+            },
+            {
+              "id": "c7",
+              "name": "shipsterWarehouseId",
+              "value": 8,
+              "type": "number"
+            },
+            {
+              "id": "c8",
+              "name": "testOrder",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "c9",
+              "name": "faisalWarehouseId",
+              "value": 2,
+              "type": "number"
+            },
+            {
+              "id": "c10",
+              "name": "confirmNotAvailable",
+              "value": "={{ $now.setZone('Asia/Karachi').hour === 10 }}",
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        224,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "custom",
+        "customResource": "=sale.order",
+        "operation": "getAll",
+        "returnAll": true,
+        "options": {
+          "fieldsList": [
+            "name",
+            "state",
+            "order_line",
+            "note",
+            "x_studio_country",
+            "create_date",
+            "warehouse_id",
+            "incoterm_location",
+            "has_archived_products"
+          ]
+        },
+        "filterRequest": {
+          "filter": [
+            {
+              "fieldName": "amazon_channel",
+              "value": "fbm"
+            },
+            {
+              "fieldName": "state",
+              "value": "draft"
+            },
+            {
+              "fieldName": "x_studio_country",
+              "operator": "like",
+              "value": "United States"
+            }
+          ]
+        }
+      },
+      "name": "Get AZ US New Orders",
+      "type": "n8n-nodes-base.odoo",
+      "typeVersion": 1,
+      "position": [
+        448,
+        -224
+      ],
+      "credentials": {
+        "odooApi": {
+          "id": "REPLACE_ME",
+          "name": "Odoo account"
+        }
+      },
+      "notes": "Same domain as the Odoo favourite filter 'AZ US New Order'"
+    },
+    {
+      "parameters": {
+        "resource": "custom",
+        "customResource": "=sale.order.line",
+        "operation": "getAll",
+        "returnAll": true,
+        "options": {
+          "fieldsList": [
+            "order_id",
+            "product_id",
+            "product_template_id",
+            "variant_size_value",
+            "variant_material_value",
+            "product_uom_qty",
+            "is_delivery",
+            "display_type",
+            "name"
+          ]
+        },
+        "filterRequest": {
+          "filter": [
+            {
+              "fieldName": "order_id",
+              "operator": "in",
+              "value": "={{ $('Get AZ US New Orders').all().map(i => i.json.id) }}"
+            }
+          ]
+        }
+      },
+      "name": "Get Order Lines",
+      "type": "n8n-nodes-base.odoo",
+      "typeVersion": 1,
+      "position": [
+        672,
+        -224
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "odooApi": {
+          "id": "REPLACE_ME",
+          "name": "Odoo account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Ameri Stock",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "name": "Read Ameri Stock",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1120,
+        -224
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ME",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Shipster Stock",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "name": "Read Shipster Stock",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1344,
+        -224
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ME",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== Plan: decide warehouse per order =====\n// sources (priority order): Ameri Stock, Shipster Stock, Ameeri Return, Shipster Return, Faisal Return\n// each source: { key, route, rows, cols:{product,size,mat,status,dispatchId,dispatchDate,oldId?}, label, warehouseId, kind:'stock'|'return' }\nfunction planOrders(orders, lines, sources, cfg) {\n  const norm = s => String(s ?? '').replace(/^\\s*\\[[^\\]]*\\]\\s*/, '').toLowerCase().replace(/\\s+/g, ' ').trim();\n  const SIZE = { 'xxs':'XXS','xx-small':'XXS','xs':'XS','x-small':'XS','extra small':'XS','s':'S','small':'S','m':'M','medium':'M','l':'L','large':'L',\n    'xl':'XL','x-large':'XL','extra large':'XL','xxl':'2XL','2xl':'2XL','xx-large':'2XL','xxxl':'3XL','3xl':'3XL','xxx-large':'3XL',\n    '4xl':'4XL','xxxxl':'4XL','5xl':'5XL','6xl':'6XL' };\n  const normSize = s => { const k = String(s ?? '').toLowerCase().replace(/\\s+/g, ' ').trim(); return SIZE[k] || k.toUpperCase(); };\n  const normMat = s => String(s ?? '').toLowerCase().replace(/laether/g, 'leather').replace(/[^a-z]/g, '').replace(/^cotto$/, 'cotton');\n  const matOk = (a, b) => { a = normMat(a); b = normMat(b); return !a || !b || a === b || a.includes(b) || b.includes(a); };\n  const parenParts = name => { const m = String(name || '').match(/\\(([^()]*)\\)\\s*$/); return m ? m[1].split(',').map(x => x.trim()) : []; };\n\n  const today = cfg.today; // m/d/yyyy\n  const recentLimit = Date.now() - 14 * 864e5;\n  const parseMDY = s => { const m = String(s || '').match(/^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})$/); return m ? new Date(+m[3], +m[1] - 1, +m[2]).getTime() : NaN; };\n\n  const mkStock = (rows, key) => rows.map(r => ({\n    row_number: r.row_number, product: norm(r[key.product]), size: normSize(r[key.size]), mat: r[key.mat],\n    status: String(r[key.status] || '').trim().toLowerCase(), dispatchId: String(r[key.dispatchId] || '').trim().toUpperCase(),\n    dispatchDate: r[key.dispatchDate], used: false,\n    skuBox: `${String(r['SKU'] || '').trim()} ${String(r['Box #'] || '').trim()}`.trim(),\n    oldId: key.oldId ? String(r[key.oldId] ?? '').trim() : '',\n  }));\n  const WH = {};\n  for (const s of sources) WH[s.key] = { ...s, stock: mkStock(s.rows, s.cols) };\n\n  const linesByOrder = {};\n  for (const l of lines) { const oid = Array.isArray(l.order_id) ? l.order_id[0] : l.order_id; (linesByOrder[oid] ||= []).push(l); }\n\n  const isNonProduct = l => l.display_type || l.is_delivery || /^(amazon shipping)$/i.test(norm(Array.isArray(l.product_template_id) ? l.product_template_id[1] : '')) || !l.product_id;\n\n  // try to allocate all needed units in one warehouse; returns rows or null\n  function tryAlloc(wh, needs, orderName) {\n    const picked = [];\n    for (const n of needs) {\n      for (let q = 0; q < n.qty; q++) {\n        const fit = r => !r.used && r.product === n.product && r.size === n.size && matOk(r.mat, n.mat);\n        // reuse rows already dispatched to this order (re-run safety)\n        let r = wh.stock.find(r => fit(r) && r.status === 'out' && r.dispatchId === orderName.toUpperCase() && parseMDY(r.dispatchDate) >= recentLimit);\n        let already = !!r;\n        if (!r) r = wh.stock.find(r => fit(r) && r.status === 'in');\n        if (!r) { picked.forEach(p => p.row.used = false); return null; }\n        r.used = true; picked.push({ row: r, already });\n      }\n    }\n    return picked;\n  }\n\n  const sorted = [...orders].filter(o => /united states/i.test(o.x_studio_country || ''))\n    .sort((a, b) => String(a.create_date).localeCompare(String(b.create_date)) || a.id - b.id);\n\n  const noteNow = o => (String(o.note || '') === 'false' ? '' : String(o.note || ''));\n  const out = [];\n  for (const o of sorted) {\n    // \"Warning: This quote contains archived product(s)\" -> leave the order untouched\n    if (o.has_archived_products) {\n      out.push({ route: 'skip', order_id: o.id, order_name: o.name, items: '', reason: 'contains archived product(s)' });\n      continue;\n    }\n    const prodLines = (linesByOrder[o.id] || []).filter(l => !isNonProduct(l));\n    // orders with the \"Amazon Sale\" placeholder product (no real product mapped) are left untouched\n    if (prodLines.some(l => norm(Array.isArray(l.product_template_id) ? l.product_template_id[1] : '') === 'amazon sale')) {\n      out.push({ route: 'skip', order_id: o.id, order_name: o.name, items: 'Amazon Sale', reason: 'Amazon Sale placeholder product' });\n      continue;\n    }\n    const needs = prodLines.map(l => {\n      const tmpl = Array.isArray(l.product_template_id) ? l.product_template_id[1] : '';\n      const parts = parenParts(Array.isArray(l.product_id) ? l.product_id[1] : '');\n      const size = l.variant_size_value || parts.find(p => SIZE[p.toLowerCase()] || /^\\d?x*l$|^\\d?xs$/i.test(p)) || '';\n      const mat = l.variant_material_value || (parts.length > 1 ? parts[parts.length - 1] : '');\n      return { product: norm(tmpl), size: normSize(size), mat, qty: Math.max(1, Math.round(l.product_uom_qty || 1)), label: `${tmpl} / ${size} / ${mat}` };\n    });\n    let chosen = null, picked = null;\n    if (needs.length && needs.every(n => n.product && n.size)) {\n      for (const s of sources) { picked = tryAlloc(WH[s.key], needs, o.name); if (picked) { chosen = s.key; break; } }\n    }\n    const base = { order_id: o.id, order_name: o.name, items: needs.map(n => n.label).join(' | ') };\n    if (chosen) {\n      const wh = WH[chosen];\n      for (const p of picked.filter(p => !p.already))\n        out.push({ route: wh.route, ...base, row_number: p.row.row_number, dispatch_id: o.name, dispatch_date: today });\n      // stock sheets: SKU + Box #   |   return sheets: OLD ID <Return ID>\n      const detail = wh.kind === 'return' ? picked.map(p => `OLD ID ${p.row.oldId}`).join(', ') : picked.map(p => p.row.skuBox).join(', ');\n      out.push({ route: 'ship', ...base, note: noteNow(o), warehouse: chosen, warehouse_id: wh.warehouseId,\n        us_wh_sku: `Shipped From ${wh.label} ${today} ${detail}`.trim(), sheet_rows: picked.map(p => p.row.row_number).join(',') });\n    } else {\n      const note = String(o.note || '');\n      if (!/warehouse not available/i.test(note.replace(/<[^>]+>/g, ' ')))\n        out.push({ route: 'not_available', ...base, note: (note && note !== 'false' ? note : '') + '<p>Warehouse Not Available</p>' });\n      else out.push({ route: 'skip', ...base, reason: 'already marked Warehouse Not Available' });\n      // 10 AM run only: still not found after the 12 AM / 6 AM / 10 AM checks -> confirm as it is\n      if (cfg.confirmNotAvailable) out.push({ route: 'confirm_not_available', ...base, note: noteNow(o) + (/warehouse not available/i.test(note.replace(/<[^>]+>/g, ' ')) ? '' : '<p>Warehouse Not Available</p>') });\n    }\n  }\n  return out;\n}\n\nconst c = $('Config').first().json;\nconst rows = n => $(n).all().map(i => i.json).filter(r => r.row_number);\n// priority order: Ameri Stock -> Shipster Stock -> Ameeri Return -> Shipster Return -> Faisal Return\nconst sources = [\n  { key: 'AMERI', route: 'ameri_row', rows: rows('Read Ameri Stock'), label: 'Ameri', warehouseId: c.ameriWarehouseId, kind: 'stock',\n    cols: { product: 'Products', size: 'Size', mat: 'Column 6', status: 'Column 8', dispatchId: 'Dispatch ID', dispatchDate: 'Dispatch Date' } },\n  { key: 'SHIPSTER', route: 'shipster_row', rows: rows('Read Shipster Stock'), label: 'LLC', warehouseId: c.shipsterWarehouseId, kind: 'stock',\n    cols: { product: 'Product', size: 'Size', mat: 'Materail', status: 'status', dispatchId: 'Dispatch ID', dispatchDate: 'Dispatch Date' } },\n  { key: 'AMERI_RETURN', route: 'ameri_return_row', rows: rows('Read Ameeri Return'), label: 'Ameri', warehouseId: c.ameriWarehouseId, kind: 'return',\n    cols: { product: 'Product', size: 'Size', mat: 'Material', status: 'Column 8', dispatchId: 'Remarks', dispatchDate: 'Dispatch Date', oldId: 'Return OID' } },\n  { key: 'SHIPSTER_RETURN', route: 'shipster_return_row', rows: rows('Read Shipster Return'), label: 'LLC', warehouseId: c.shipsterWarehouseId, kind: 'return',\n    cols: { product: 'PRODUCT', size: 'Size', mat: 'Material', status: 'Column 9', dispatchId: 'Remarks', dispatchDate: 'Dispatch Date', oldId: 'Return O ID' } },\n  { key: 'FAISAL_RETURN', route: 'faisal_return_row', rows: rows('Read Faisal Return'), label: 'Faisal', warehouseId: c.faisalWarehouseId, kind: 'return',\n    cols: { product: 'Product', size: 'Size', mat: 'Material', status: 'Status', dispatchId: 'Remarks', dispatchDate: 'Dispatch Date', oldId: 'Return O ID' } },\n];\n// testOrder in Config (e.g. S22827) = process only that order; leave empty for all orders\nconst testOrder = String(c.testOrder || '').trim().toUpperCase();\n// orders with an 'MCF' activity are never touched\nconst mcf = new Set($('Get MCF Activities').all().map(i => i.json.res_id).filter(Boolean));\nconst plan = planOrders(\n  $('Get AZ US New Orders').all().map(i => i.json).filter(o => !mcf.has(o.id)).filter(o => !testOrder || String(o.name).toUpperCase() === testOrder),\n  $('Get Order Lines').all().map(i => i.json),\n  sources, { today: c.today, confirmNotAvailable: c.confirmNotAvailable === true });\nreturn plan.map(json => ({ json }));\n"
+      },
+      "name": "Plan (match stock)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2240,
+        -224
+      ],
+      "notes": "Priority: Ameri Stock, Shipster Stock, Ameeri Return, Shipster Return, Faisal Return. Match = product + size + material with status In."
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "ameri_row",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Ameri rows"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "shipster_row",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Shipster rows"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "ameri_return_row",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Ameeri Return rows"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "shipster_return_row",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Shipster Return rows"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "faisal_return_row",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Faisal Return rows"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "ship",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Ship order"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "not_available",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Not available"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "confirm_not_available",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Confirm not available (10 AM)"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Route",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        2464,
+        -320
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Ameri Stock",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ $json.row_number }}",
+            "Column 8": "Out",
+            "Dispatch ID": "={{ $json.dispatch_id }}",
+            "Dispatch Date": "={{ $json.dispatch_date }}"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false,
+              "readOnly": true
+            },
+            {
+              "id": "Column 8",
+              "displayName": "Column 8",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Dispatch ID",
+              "displayName": "Dispatch ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Dispatch Date",
+              "displayName": "Dispatch Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED"
+        }
+      },
+      "name": "Mark Out - Ameri Stock",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2688,
+        -224
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ME",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Shipster Stock",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ $json.row_number }}",
+            "status": "Out",
+            "Dispatch ID": "={{ $json.dispatch_id }}",
+            "Dispatch Date": "={{ $json.dispatch_date }}"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false,
+              "readOnly": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Dispatch ID",
+              "displayName": "Dispatch ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Dispatch Date",
+              "displayName": "Dispatch Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED"
+        }
+      },
+      "name": "Mark Out - Shipster Stock",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2688,
+        160
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ME",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "custom",
+        "customResource": "=sale.order",
+        "operation": "update",
+        "customResourceId": "={{ $json.order_id }}",
+        "fieldsToCreateOrUpdate": {
+          "fields": [
+            {
+              "fieldName": "incoterm_location",
+              "fieldValue": "={{ $json.us_wh_sku }}"
+            },
+            {
+              "fieldName": "warehouse_id",
+              "fieldValue": "={{ $json.warehouse_id }}"
+            }
+          ]
+        }
+      },
+      "name": "Set Warehouse + US WH SKU",
+      "type": "n8n-nodes-base.odoo",
+      "typeVersion": 1,
+      "position": [
+        2688,
+        -32
+      ],
+      "credentials": {
+        "odooApi": {
+          "id": "REPLACE_ME",
+          "name": "Odoo account"
+        }
+      },
+      "notes": "incoterm_location = the field shown as 'US WH SKU'"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.odooUrl }}/jsonrpc",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ jsonrpc: '2.0', method: 'call', id: 1, params: { service: 'common', method: 'login', args: [ $('Config').first().json.odooDb, $('Config').first().json.odooLogin, $('Config').first().json.odooApiKey ] } }) }}",
+        "options": {}
+      },
+      "name": "Odoo Login",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2912,
+        496
+      ],
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const login = $('Odoo Login').first().json;\nconst uid = login.result;\nif (!uid) throw new Error('Odoo login failed - fill odooLogin and odooApiKey in the Config node. Response: ' + JSON.stringify(login.error || login));\nreturn $('Plan (match stock)').all().filter(i => i.json.route === 'ship').map(i => ({ json: { ...i.json, uid } }));"
+      },
+      "name": "Orders to Confirm",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3136,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.odooUrl }}/jsonrpc",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ jsonrpc: '2.0', method: 'call', id: 2, params: { service: 'object', method: 'execute_kw', args: [ $('Config').first().json.odooDb, $json.uid, $('Config').first().json.odooApiKey, 'sale.order', 'action_confirm', [[ $json.order_id ]] ] } }) }}",
+        "options": {}
+      },
+      "name": "Confirm Order",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3360,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const orders = $('Orders to Confirm').all();\n// one result per order; failed ones get a remark in Odoo instead of stopping the whole run\nconst failed = [];\n$input.all().forEach((r, i) => {\n  const o = orders[i].json, e = r.json.error;\n  if (!e) return;\n  // already confirmed (e.g. by the team at the same time) -> not a failure\n  if (/not in a state requiring confirmation/i.test(String(e.data?.message || e.message || ''))) return;\n  const why = [e.data?.name, e.data?.message || e.message].filter(Boolean).join(': ');\n  const cur = String(o.note || '');\n  if (/confirm failed/i.test(cur.replace(/<[^>]+>/g, ' '))) return;   // remark only once\n  failed.push({ json: { order_id: o.order_id, order_name: o.order_name, error: why, note: cur + '<p>Confirm Failed - Odoo error: ' + why + '</p>' } });\n});\nreturn failed;"
+      },
+      "name": "Confirm Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3584,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "custom",
+        "customResource": "=sale.order",
+        "operation": "update",
+        "customResourceId": "={{ $json.order_id }}",
+        "fieldsToCreateOrUpdate": {
+          "fields": [
+            {
+              "fieldName": "note",
+              "fieldValue": "={{ $json.note }}"
+            }
+          ]
+        }
+      },
+      "name": "Add Remark: Warehouse Not Available",
+      "type": "n8n-nodes-base.odoo",
+      "typeVersion": 1,
+      "position": [
+        2688,
+        352
+      ],
+      "credentials": {
+        "odooApi": {
+          "id": "REPLACE_ME",
+          "name": "Odoo account"
+        }
+      },
+      "notes": "Appends 'Warehouse Not Available' to Terms and conditions (only once per order)"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Ameeri Return",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "name": "Read Ameeri Return",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1568,
+        -224
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ME",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Shipster Return",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "name": "Read Shipster Return",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1792,
+        -224
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ME",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Faisal Return",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "name": "Read Faisal Return",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2016,
+        -224
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ME",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Ameeri Return",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ $json.row_number }}",
+            "Column 8": "Out",
+            "Remarks": "={{ $json.dispatch_id }}",
+            "Dispatch Date": "={{ $json.dispatch_date }}"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false,
+              "readOnly": true
+            },
+            {
+              "id": "Column 8",
+              "displayName": "Column 8",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Remarks",
+              "displayName": "Remarks",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Dispatch Date",
+              "displayName": "Dispatch Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED"
+        }
+      },
+      "name": "Mark Out - Ameeri Return",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2688,
+        -608
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ME",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Shipster Return",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ $json.row_number }}",
+            "Column 9": "Out",
+            "Remarks": "={{ $json.dispatch_id }}",
+            "Dispatch Date": "={{ $json.dispatch_date }}"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false,
+              "readOnly": true
+            },
+            {
+              "id": "Column 9",
+              "displayName": "Column 9",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Remarks",
+              "displayName": "Remarks",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Dispatch Date",
+              "displayName": "Dispatch Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED"
+        }
+      },
+      "name": "Mark Out - Shipster Return",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2688,
+        -416
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ME",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Faisal Return",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ $json.row_number }}",
+            "Status": "Out",
+            "Remarks": "={{ $json.dispatch_id }}",
+            "Dispatch Date": "={{ $json.dispatch_date }}"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false,
+              "readOnly": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Remarks",
+              "displayName": "Remarks",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Dispatch Date",
+              "displayName": "Dispatch Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED"
+        }
+      },
+      "name": "Mark Out - Faisal Return",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2688,
+        -800
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ME",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.odooUrl }}/jsonrpc",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ jsonrpc: '2.0', method: 'call', id: 1, params: { service: 'common', method: 'login', args: [ $('Config').first().json.odooDb, $('Config').first().json.odooLogin, $('Config').first().json.odooApiKey ] } }) }}",
+        "options": {}
+      },
+      "name": "Odoo Login (not available)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1808,
+        608
+      ],
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const login = $('Odoo Login (not available)').first().json;\nconst uid = login.result;\nif (!uid) throw new Error('Odoo login failed - check odooLogin and odooApiKey in the Config node. Response: ' + JSON.stringify(login.error || login));\nreturn $('Plan (match stock)').all().filter(i => i.json.route === 'confirm_not_available').map(i => ({ json: { ...i.json, uid } }));"
+      },
+      "name": "Not Available to Confirm",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3136,
+        400
+      ],
+      "notes": "10 AM run only: orders still not found in any sheet are confirmed with their current warehouse"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.odooUrl }}/jsonrpc",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ jsonrpc: '2.0', method: 'call', id: 2, params: { service: 'object', method: 'execute_kw', args: [ $('Config').first().json.odooDb, $json.uid, $('Config').first().json.odooApiKey, 'sale.order', 'action_confirm', [[ $json.order_id ]] ] } }) }}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 10
+            }
+          }
+        }
+      },
+      "name": "Confirm Not Available Order",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2240,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const orders = $('Not Available to Confirm').all();\n// one result per order; failed ones get a remark in Odoo instead of stopping the whole run\nconst failed = [];\n$input.all().forEach((r, i) => {\n  const o = orders[i].json, e = r.json.error;\n  if (!e) return;\n  // already confirmed (e.g. by the team at the same time) -> not a failure\n  if (/not in a state requiring confirmation/i.test(String(e.data?.message || e.message || ''))) return;\n  const why = [e.data?.name, e.data?.message || e.message].filter(Boolean).join(': ');\n  const cur = String(o.note || '');\n  if (/confirm failed/i.test(cur.replace(/<[^>]+>/g, ' '))) return;   // remark only once\n  failed.push({ json: { order_id: o.order_id, order_name: o.order_name, error: why, note: cur + '<p>Confirm Failed - Odoo error: ' + why + '</p>' } });\n});\nreturn failed;"
+      },
+      "name": "Confirm Results (not available)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3584,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "custom",
+        "customResource": "=sale.order",
+        "operation": "update",
+        "customResourceId": "={{ $json.order_id }}",
+        "fieldsToCreateOrUpdate": {
+          "fields": [
+            {
+              "fieldName": "note",
+              "fieldValue": "={{ $json.note }}"
+            }
+          ]
+        }
+      },
+      "name": "Add Remark: Confirm Failed",
+      "type": "n8n-nodes-base.odoo",
+      "typeVersion": 1,
+      "position": [
+        3808,
+        496
+      ],
+      "credentials": {
+        "odooApi": {
+          "id": "REPLACE_ME",
+          "name": "Odoo account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "custom",
+        "customResource": "=mail.activity",
+        "operation": "getAll",
+        "returnAll": true,
+        "options": {
+          "fieldsList": [
+            "res_id",
+            "res_name",
+            "summary"
+          ]
+        },
+        "filterRequest": {
+          "filter": [
+            {
+              "fieldName": "res_model",
+              "value": "sale.order"
+            },
+            {
+              "fieldName": "summary",
+              "operator": "like",
+              "value": "MCF"
+            },
+            {
+              "fieldName": "res_id",
+              "operator": "in",
+              "value": "={{ $('Get AZ US New Orders').all().map(i => i.json.id) }}"
+            }
+          ]
+        }
+      },
+      "name": "Get MCF Activities",
+      "type": "n8n-nodes-base.odoo",
+      "typeVersion": 1,
+      "position": [
+        896,
+        -224
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "odooApi": {
+          "id": "REPLACE_ME",
+          "name": "Odoo account"
+        }
+      },
+      "notes": "Orders with an 'MCF' activity (e.g. MCF, LATE MCF) are skipped completely: no stock, no remark, no confirm"
+    },
+    {
+      "parameters": {
+        "resource": "custom",
+        "customResource": "=sale.order",
+        "operation": "getAll",
+        "returnAll": true,
+        "options": {
+          "fieldsList": [
+            "name",
+            "note",
+            "has_archived_products",
+            "x_studio_country",
+            "create_date"
+          ]
+        },
+        "filterRequest": {
+          "filter": [
+            {
+              "fieldName": "amazon_channel",
+              "value": "fbm"
+            },
+            {
+              "fieldName": "state",
+              "value": "draft"
+            }
+          ]
+        }
+      },
+      "name": "OC: Get Other Country Orders",
+      "type": "n8n-nodes-base.odoo",
+      "typeVersion": 1,
+      "position": [
+        672,
+        784
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "odooApi": {
+          "id": "REPLACE_ME",
+          "name": "Odoo account"
+        }
+      },
+      "notes": "Same as Odoo filter 'AZ Other ctry Orders' (country is not United States, filtered in the Plan step)"
+    },
+    {
+      "parameters": {
+        "resource": "custom",
+        "customResource": "=mail.activity",
+        "operation": "getAll",
+        "returnAll": true,
+        "options": {
+          "fieldsList": [
+            "res_id",
+            "res_name",
+            "summary"
+          ]
+        },
+        "filterRequest": {
+          "filter": [
+            {
+              "fieldName": "res_model",
+              "value": "sale.order"
+            },
+            {
+              "fieldName": "summary",
+              "operator": "like",
+              "value": "MCF"
+            },
+            {
+              "fieldName": "res_id",
+              "operator": "in",
+              "value": "={{ $('OC: Get Other Country Orders').all().map(i => i.json).filter(o => o.id && !/united states/i.test(o.x_studio_country || '') && (!$('Config').first().json.testOrder || o.name === String($('Config').first().json.testOrder).trim().toUpperCase())).map(o => o.id) }}"
+            }
+          ]
+        }
+      },
+      "name": "OC: Get MCF Activities",
+      "type": "n8n-nodes-base.odoo",
+      "typeVersion": 1,
+      "position": [
+        896,
+        784
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "odooApi": {
+          "id": "REPLACE_ME",
+          "name": "Odoo account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "custom",
+        "customResource": "=sale.order.line",
+        "operation": "getAll",
+        "returnAll": true,
+        "options": {
+          "fieldsList": [
+            "order_id",
+            "product_id",
+            "product_template_id",
+            "name",
+            "asin",
+            "amazon_asin",
+            "amazon_seller_sku",
+            "price_unit",
+            "tax_id",
+            "discount",
+            "display_type"
+          ]
+        },
+        "filterRequest": {
+          "filter": [
+            {
+              "fieldName": "order_id",
+              "operator": "in",
+              "value": "={{ $('OC: Get Other Country Orders').all().map(i => i.json).filter(o => o.id && !/united states/i.test(o.x_studio_country || '') && (!$('Config').first().json.testOrder || o.name === String($('Config').first().json.testOrder).trim().toUpperCase())).filter(o => o.has_archived_products).map(o => o.id) }}"
+            }
+          ]
+        }
+      },
+      "name": "OC: Lines of Archived Orders",
+      "type": "n8n-nodes-base.odoo",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        784
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "odooApi": {
+          "id": "REPLACE_ME",
+          "name": "Odoo account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "custom",
+        "customResource": "=product.product",
+        "operation": "getAll",
+        "returnAll": true,
+        "options": {
+          "fieldsList": [
+            "display_name",
+            "active"
+          ]
+        },
+        "filterRequest": {
+          "filter": [
+            {
+              "fieldName": "id",
+              "operator": "in",
+              "value": "={{ $('OC: Lines of Archived Orders').all().map(i => i.json.product_id && i.json.product_id[0]).filter(Boolean) }}"
+            },
+            {
+              "fieldName": "active",
+              "value": "={{ false }}"
+            }
+          ]
+        }
+      },
+      "name": "OC: Archived Products",
+      "type": "n8n-nodes-base.odoo",
+      "typeVersion": 1,
+      "position": [
+        1344,
+        784
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "odooApi": {
+          "id": "REPLACE_ME",
+          "name": "Odoo account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "custom",
+        "customResource": "=sale.order.line",
+        "operation": "getAll",
+        "returnAll": true,
+        "options": {
+          "fieldsList": [
+            "order_id",
+            "product_id",
+            "product_template_id",
+            "name",
+            "asin",
+            "amazon_asin",
+            "amazon_seller_sku",
+            "price_unit",
+            "tax_id",
+            "discount",
+            "display_type"
+          ]
+        },
+        "filterRequest": {
+          "filter": [
+            {
+              "fieldName": "asin",
+              "operator": "in",
+              "value": "={{ [...new Set($('OC: Lines of Archived Orders').all().flatMap(i => [i.json.asin, i.json.amazon_asin]).filter(a => a && String(a).trim()).map(a => String(a).trim()))] }}"
+            }
+          ]
+        }
+      },
+      "name": "OC: Same ASIN (field 1)",
+      "type": "n8n-nodes-base.odoo",
+      "typeVersion": 1,
+      "position": [
+        1568,
+        784
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "odooApi": {
+          "id": "REPLACE_ME",
+          "name": "Odoo account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "custom",
+        "customResource": "=sale.order.line",
+        "operation": "getAll",
+        "returnAll": true,
+        "options": {
+          "fieldsList": [
+            "order_id",
+            "product_id",
+            "product_template_id",
+            "name",
+            "asin",
+            "amazon_asin",
+            "amazon_seller_sku",
+            "price_unit",
+            "tax_id",
+            "discount",
+            "display_type"
+          ]
+        },
+        "filterRequest": {
+          "filter": [
+            {
+              "fieldName": "amazon_asin",
+              "operator": "in",
+              "value": "={{ [...new Set($('OC: Lines of Archived Orders').all().flatMap(i => [i.json.asin, i.json.amazon_asin]).filter(a => a && String(a).trim()).map(a => String(a).trim()))] }}"
+            }
+          ]
+        }
+      },
+      "name": "OC: Same ASIN (field 2)",
+      "type": "n8n-nodes-base.odoo",
+      "typeVersion": 1,
+      "position": [
+        1792,
+        784
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "odooApi": {
+          "id": "REPLACE_ME",
+          "name": "Odoo account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "custom",
+        "customResource": "=product.product",
+        "operation": "getAll",
+        "returnAll": true,
+        "options": {
+          "fieldsList": [
+            "display_name"
+          ]
+        },
+        "filterRequest": {
+          "filter": [
+            {
+              "fieldName": "id",
+              "operator": "in",
+              "value": "={{ [...new Set([...$('OC: Same ASIN (field 1)').all(), ...$('OC: Same ASIN (field 2)').all()].map(i => i.json).filter(l => l.id).map(l => l.product_id && l.product_id[0]).filter(Boolean))] }}"
+            }
+          ]
+        }
+      },
+      "name": "OC: Active Products",
+      "type": "n8n-nodes-base.odoo",
+      "typeVersion": 1,
+      "position": [
+        2016,
+        784
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "odooApi": {
+          "id": "REPLACE_ME",
+          "name": "Odoo account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "custom",
+        "customResource": "=product.product",
+        "operation": "getAll",
+        "returnAll": true,
+        "options": {
+          "fieldsList": [
+            "display_name",
+            "product_tmpl_id"
+          ]
+        },
+        "filterRequest": {
+          "filter": [
+            {
+              "fieldName": "product_tmpl_id",
+              "operator": "in",
+              "value": "={{ [...new Set([...$('OC: Same ASIN (field 1)').all(), ...$('OC: Same ASIN (field 2)').all()].map(i => i.json).filter(l => l.id).map(l => l.product_template_id && l.product_template_id[0]).filter(Boolean))] }}"
+            }
+          ]
+        }
+      },
+      "name": "OC: Product Variants",
+      "type": "n8n-nodes-base.odoo",
+      "typeVersion": 1,
+      "position": [
+        2240,
+        784
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "odooApi": {
+          "id": "REPLACE_ME",
+          "name": "Odoo account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== Fix archived products: plan (shared by preview + real workflow) =====\n// inputs: orders, lines (of those orders), archivedIds, candLines (other lines with same ASINs), activeIds, variants (of candidate templates)\nfunction planFix(orders, lines, archivedIds, candLines, activeIds, variants, opts) {\n  const SIZE = { 'xxs':'XXS','xx-small':'XXS','xxsmall':'XXS','xs':'XS','x-small':'XS','xsmall':'XS','s':'S','small':'S','m':'M','medium':'M','med':'M',\n    'l':'L','large':'L','xl':'XL','x-large':'XL','xlarge':'XL','xxl':'2XL','2xl':'2XL','xx-large':'2XL','xxlarge':'2XL',\n    'xxxl':'3XL','3xl':'3XL','xxx-large':'3XL','xxxlarge':'3XL','4xl':'4XL','xxxxl':'4XL','5xl':'5XL','6xl':'6XL' };\n  const sz = s => SIZE[String(s || '').toLowerCase().trim()] || '';\n  const archived = new Set(archivedIds), active = new Set(activeIds);\n  const id0 = v => Array.isArray(v) ? v[0] : v;\n  const parts = dn => { const m = String(dn || '').match(/\\(([^()]*)\\)\\s*$/); return m ? m[1].split(',').map(x => x.trim()) : []; };\n  const normMat = s => String(s || '').toLowerCase().replace(/[^a-z]/g, '');\n  const varSize = v => parts(v.display_name).map(sz).find(Boolean) || '';\n  const varMat = v => { const p = parts(v.display_name).filter(x => !sz(x) && !/^(male|female|men|women|unisex)$/i.test(x)); return p[p.length - 1] || ''; };\n\n  const skuOf = l => String(l.amazon_seller_sku || (String(l.name || '').match(/^\\s*\\[([^\\]]+)\\]/) || [])[1] || '').trim();\n  function sizeFrom(l) {\n    const toks = skuOf(l).split(/[-_\\s]+/).filter(Boolean);\n    for (let i = toks.length - 1; i >= 0; i--) { const s = sz(toks[i]); if (s) return s; }\n    const txt = String(l.name || '');\n    const m = txt.match(/\\b(XX-Small|X-Small|Small|Medium|Large|X-Large|XX-Large|XXX-Large|XXS|XS|XXXL|XXL|XL|[2-6]XL)\\b/i);\n    return m ? sz(m[1]) : '';\n  }\n  const variantsByTmpl = {};\n  for (const v of variants) (variantsByTmpl[id0(v.product_tmpl_id)] ||= []).push(v);\n\n  const linesByOrder = {};\n  for (const l of lines) (linesByOrder[id0(l.order_id)] ||= []).push(l);\n\n  const out = [];\n  for (const o of orders) {\n    if (!o.has_archived_products) continue;\n    const archLines = (linesByOrder[o.id] || []).filter(l => l.product_id && archived.has(id0(l.product_id)) && !l.display_type);\n    const results = [];\n    for (const l of archLines) {\n      const asins = [...new Set([l.asin, l.amazon_asin].map(a => String(a || '').trim()).filter(Boolean))];\n      let cands = [];\n      for (const a of asins) {           // first ASIN, then second ASIN\n        cands = candLines.filter(c => id0(c.order_id) !== o.id && c.product_id && active.has(id0(c.product_id)) && id0(c.product_id) !== id0(l.product_id)\n                                   && (String(c.asin || '').trim() === a || String(c.amazon_asin || '').trim() === a));\n        if (cands.length) break;\n      }\n      if (!cands.length) { results.push({ line_id: l.id, status: 'order_not_found', asins: asins.join(','), sku: skuOf(l) }); continue; }\n      // most common template among matching orders (tie -> most recent line)\n      const byT = {};\n      for (const c of cands) { const t = id0(c.product_template_id); (byT[t] ||= { t, n: 0, last: c, name: c.product_template_id[1] }); byT[t].n++; if (c.id > byT[t].last.id) byT[t].last = c; }\n      const best = Object.values(byT).sort((a, b) => b.n - a.n || b.last.id - a.last.id)[0];\n      const refVariant = variants.find(v => v.id === id0(best.last.product_id));\n      const want = sizeFrom(l);\n      const pool = (variantsByTmpl[best.t] || []).filter(v => active.has(v.id) || true);\n      let pick = null;\n      if (want) {\n        let m = pool.filter(v => varSize(v) === want);\n        if (m.length > 1 && refVariant) { const mm = m.filter(v => normMat(varMat(v)) === normMat(varMat(refVariant))); if (mm.length) m = mm; }\n        if (m.length === 1) pick = m[0];\n      }\n      if (!pick) { results.push({ line_id: l.id, status: 'product_not_found', product: best.name, size: want || '?', from_order: best.last.order_id[1], sku: skuOf(l) }); continue; }\n      results.push({ line_id: l.id, status: 'fix', product_id: pick.id, product: pick.display_name, size: want, from_order: best.last.order_id[1], sku: skuOf(l),\n                     price_unit: l.price_unit, name: l.name, tax_ids: l.tax_id || [], discount: l.discount || 0 });\n    }\n    const fixes = results.filter(r => r.status === 'fix');\n    const fails = results.filter(r => r.status !== 'fix');\n    let note = null;\n    if (fails.length) {\n      const msg = fails.some(f => f.status === 'order_not_found') ? 'Order Not Found' : 'Product Not Found';\n      const cur = String(o.note || '') === 'false' ? '' : String(o.note || '');\n      if (!new RegExp(msg, 'i').test(cur.replace(/<[^>]+>/g, ' '))) note = cur + `<p>${msg}</p>`;\n    }\n    out.push({ order_id: o.id, order_name: o.name, fixes, fails, note });\n  }\n  return out;\n}\n\nconst ok = i => i.json && i.json.id;\nconst c = $('Config').first().json;\nconst testOrder = String(c.testOrder || '').trim().toUpperCase();\nconst orders = $('OC: Get Other Country Orders').all().filter(ok).map(i => i.json)\n  .filter(o => !/united states/i.test(o.x_studio_country || '') && (!testOrder || o.name === testOrder));\nconst mcf = new Set($('OC: Get MCF Activities').all().filter(ok).map(i => i.json.res_id));\nconst cand = {};\nfor (const n of ['OC: Same ASIN (field 1)', 'OC: Same ASIN (field 2)']) for (const i of $(n).all().filter(ok)) cand[i.json.id] = i.json;\nconst work = orders.filter(o => !mcf.has(o.id));                 // MCF activity -> never touched\nconst fixPlan = planFix(work, $('OC: Lines of Archived Orders').all().filter(ok).map(i => i.json),\n  $('OC: Archived Products').all().filter(ok).map(i => i.json.id), Object.values(cand),\n  $('OC: Active Products').all().filter(ok).map(i => i.json.id), $('OC: Product Variants').all().filter(ok).map(i => i.json), {});\nconst byOrder = Object.fromEntries(fixPlan.map(p => [p.order_id, p]));\nconst items = [];\nfor (const o of work) {\n  const p = byOrder[o.id];\n  if (p) {\n    for (const f of p.fixes) items.push({ json: { route: 'oc_fix_line', order_name: o.name, line_id: f.line_id, product_id: f.product_id, product: f.product,\n      price_unit: f.price_unit, name: f.name, tax_cmd: [[6, 0, f.tax_ids]], from_order: f.from_order, sku: f.sku } });\n    if (p.note) items.push({ json: { route: 'oc_remark', order_id: o.id, order_name: o.name, note: p.note, reason: p.fails.map(f => f.status + ' ' + (f.sku || '')).join('; ') } });\n    if (p.fails.length) continue;                                   // product still missing -> do not confirm\n  } else if (o.has_archived_products) continue;                     // archived but nothing to fix (safety)\n  items.push({ json: { route: 'oc_confirm', order_id: o.id, order_name: o.name, country: o.x_studio_country, note: String(o.note || '') === 'false' ? '' : String(o.note || ''),\n    fixed: p ? p.fixes.map(f => f.product).join(' | ') : '' } });\n}\nreturn items;"
+      },
+      "name": "OC: Plan (fix product + confirm)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2464,
+        784
+      ],
+      "notes": "Other-country orders: archived product -> pick product by ASIN; real product -> confirm. No warehouse check. MCF activity -> skipped."
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "oc_fix_line",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Fix line"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "oc_remark",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Remark"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "oc_confirm",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Confirm"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "OC: Route",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        2688,
+        768
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "custom",
+        "customResource": "=sale.order.line",
+        "operation": "update",
+        "customResourceId": "={{ $json.line_id }}",
+        "fieldsToCreateOrUpdate": {
+          "fields": [
+            {
+              "fieldName": "product_id",
+              "fieldValue": "={{ $json.product_id }}"
+            },
+            {
+              "fieldName": "price_unit",
+              "fieldValue": "={{ $json.price_unit }}"
+            },
+            {
+              "fieldName": "name",
+              "fieldValue": "={{ $json.name }}"
+            },
+            {
+              "fieldName": "tax_id",
+              "fieldValue": "={{ $json.tax_cmd }}"
+            }
+          ]
+        }
+      },
+      "name": "OC: Replace Product on Line",
+      "type": "n8n-nodes-base.odoo",
+      "typeVersion": 1,
+      "position": [
+        2912,
+        688
+      ],
+      "credentials": {
+        "odooApi": {
+          "id": "REPLACE_ME",
+          "name": "Odoo account"
+        }
+      },
+      "notes": "Keeps original price, description and taxes"
+    },
+    {
+      "parameters": {
+        "resource": "custom",
+        "customResource": "=sale.order",
+        "operation": "update",
+        "customResourceId": "={{ $json.order_id }}",
+        "fieldsToCreateOrUpdate": {
+          "fields": [
+            {
+              "fieldName": "note",
+              "fieldValue": "={{ $json.note }}"
+            }
+          ]
+        }
+      },
+      "name": "OC: Add Remark (Order/Product Not Found)",
+      "type": "n8n-nodes-base.odoo",
+      "typeVersion": 1,
+      "position": [
+        2912,
+        880
+      ],
+      "credentials": {
+        "odooApi": {
+          "id": "REPLACE_ME",
+          "name": "Odoo account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.odooUrl }}/jsonrpc",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ jsonrpc: '2.0', method: 'call', id: 1, params: { service: 'common', method: 'login', args: [ $('Config').first().json.odooDb, $('Config').first().json.odooLogin, $('Config').first().json.odooApiKey ] } }) }}",
+        "options": {}
+      },
+      "name": "OC: Odoo Login",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2672,
+        1104
+      ],
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const login = $('OC: Odoo Login').first().json;\nconst uid = login.result;\nif (!uid) throw new Error('Odoo login failed - check odooLogin and odooApiKey in the Config node. Response: ' + JSON.stringify(login.error || login));\nreturn $('OC: Plan (fix product + confirm)').all().filter(i => i.json.route === 'oc_confirm').map(i => ({ json: { ...i.json, uid } }));"
+      },
+      "name": "OC: Orders to Confirm",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3136,
+        688
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.odooUrl }}/jsonrpc",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ jsonrpc: '2.0', method: 'call', id: 2, params: { service: 'object', method: 'execute_kw', args: [ $('Config').first().json.odooDb, $json.uid, $('Config').first().json.odooApiKey, 'sale.order', 'action_confirm', [[ $json.order_id ]] ] } }) }}",
+        "options": {}
+      },
+      "name": "OC: Confirm Order",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3104,
+        1104
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const orders = $('OC: Orders to Confirm').all();\n// one result per order; failed ones get a remark in Odoo instead of stopping the whole run\nconst failed = [];\n$input.all().forEach((r, i) => {\n  const o = orders[i].json, e = r.json.error;\n  if (!e) return;\n  // already confirmed (e.g. by the team at the same time) -> not a failure\n  if (/not in a state requiring confirmation/i.test(String(e.data?.message || e.message || ''))) return;\n  const why = [e.data?.name, e.data?.message || e.message].filter(Boolean).join(': ');\n  const cur = String(o.note || '');\n  if (/confirm failed/i.test(cur.replace(/<[^>]+>/g, ' '))) return;   // remark only once\n  failed.push({ json: { order_id: o.order_id, order_name: o.order_name, error: why, note: cur + '<p>Confirm Failed - Odoo error: ' + why + '</p>' } });\n});\nreturn failed;"
+      },
+      "name": "OC: Confirm Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3328,
+        1104
+      ]
+    }
+  ],
+  "connections": {
+    "Run manually": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Get AZ US New Orders",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "OC: Get Other Country Orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get AZ US New Orders": {
+      "main": [
+        [
+          {
+            "node": "Get Order Lines",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Order Lines": {
+      "main": [
+        [
+          {
+            "node": "Get MCF Activities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Ameri Stock": {
+      "main": [
+        [
+          {
+            "node": "Read Shipster Stock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Shipster Stock": {
+      "main": [
+        [
+          {
+            "node": "Read Ameeri Return",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan (match stock)": {
+      "main": [
+        [
+          {
+            "node": "Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Warehouse + US WH SKU": {
+      "main": [
+        [
+          {
+            "node": "Odoo Login",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Odoo Login": {
+      "main": [
+        [
+          {
+            "node": "Orders to Confirm",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Orders to Confirm": {
+      "main": [
+        [
+          {
+            "node": "Confirm Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirm Order": {
+      "main": [
+        [
+          {
+            "node": "Confirm Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route": {
+      "main": [
+        [
+          {
+            "node": "Mark Out - Ameri Stock",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Out - Shipster Stock",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Out - Ameeri Return",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Out - Shipster Return",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Out - Faisal Return",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set Warehouse + US WH SKU",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Add Remark: Warehouse Not Available",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Odoo Login (not available)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run at 12AM, 6AM, 10AM, 2PM": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Ameeri Return": {
+      "main": [
+        [
+          {
+            "node": "Read Shipster Return",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Shipster Return": {
+      "main": [
+        [
+          {
+            "node": "Read Faisal Return",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Faisal Return": {
+      "main": [
+        [
+          {
+            "node": "Plan (match stock)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Odoo Login (not available)": {
+      "main": [
+        [
+          {
+            "node": "Not Available to Confirm",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Not Available to Confirm": {
+      "main": [
+        [
+          {
+            "node": "Confirm Not Available Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirm Not Available Order": {
+      "main": [
+        [
+          {
+            "node": "Confirm Results (not available)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirm Results": {
+      "main": [
+        [
+          {
+            "node": "Add Remark: Confirm Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirm Results (not available)": {
+      "main": [
+        [
+          {
+            "node": "Add Remark: Confirm Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get MCF Activities": {
+      "main": [
+        [
+          {
+            "node": "Read Ameri Stock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OC: Get Other Country Orders": {
+      "main": [
+        [
+          {
+            "node": "OC: Get MCF Activities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OC: Get MCF Activities": {
+      "main": [
+        [
+          {
+            "node": "OC: Lines of Archived Orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OC: Lines of Archived Orders": {
+      "main": [
+        [
+          {
+            "node": "OC: Archived Products",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OC: Archived Products": {
+      "main": [
+        [
+          {
+            "node": "OC: Same ASIN (field 1)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OC: Same ASIN (field 1)": {
+      "main": [
+        [
+          {
+            "node": "OC: Same ASIN (field 2)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OC: Same ASIN (field 2)": {
+      "main": [
+        [
+          {
+            "node": "OC: Active Products",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OC: Active Products": {
+      "main": [
+        [
+          {
+            "node": "OC: Product Variants",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OC: Product Variants": {
+      "main": [
+        [
+          {
+            "node": "OC: Plan (fix product + confirm)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OC: Plan (fix product + confirm)": {
+      "main": [
+        [
+          {
+            "node": "OC: Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OC: Route": {
+      "main": [
+        [
+          {
+            "node": "OC: Replace Product on Line",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "OC: Add Remark (Order/Product Not Found)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "OC: Odoo Login",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OC: Odoo Login": {
+      "main": [
+        [
+          {
+            "node": "OC: Orders to Confirm",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OC: Orders to Confirm": {
+      "main": [
+        [
+          {
+            "node": "OC: Confirm Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OC: Confirm Order": {
+      "main": [
+        [
+          {
+            "node": "OC: Confirm Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OC: Confirm Results": {
+      "main": [
+        [
+          {
+            "node": "Add Remark: Confirm Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Karachi",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "saveDataSuccessExecution": "all",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  }
+}

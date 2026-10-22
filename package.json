@@ -1,0 +1,8 @@
+{
+  "name": "odoo-n8n-order-automation",
+  "version": "1.0.0",
+  "description": "n8n automation that matches Amazon FBM orders in Odoo 18 against Google Sheets stock, dispatches them and confirms the orders.",
+  "private": true,
+  "scripts": { "test": "node --test test/*.test.js" },
+  "license": "MIT"
+}
